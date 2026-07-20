@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Meal of Fortune wheel">
+  <rect width="512" height="512" rx="112" fill="#fff9f0"/>
+  <circle cx="256" cy="260" r="172" fill="#5b2b63"/>
+  <path d="M256 88a172 172 0 0 1 149 86L256 260Z" fill="#f26b38"/>
+  <path d="M405 174a172 172 0 0 1 0 172L256 260Z" fill="#f5bc42"/>
+  <path d="M405 346a172 172 0 0 1-149 86V260Z" fill="#b8dbc5"/>
+  <path d="M256 432a172 172 0 0 1-149-86l149-86Z" fill="#ef8d64"/>
+  <path d="M107 346a172 172 0 0 1 0-172l149 86Z" fill="#f4d078"/>
+  <path d="M107 174a172 172 0 0 1 149-86v172Z" fill="#8c5a91"/>
+  <circle cx="256" cy="260" r="55" fill="#fffdf9" stroke="#241c18" stroke-width="12"/>
+  <circle cx="256" cy="260" r="14" fill="#f26b38"/>
+  <path d="M256 30l27 58h-54z" fill="#241c18" stroke="#fff9f0" stroke-width="8" stroke-linejoin="round"/>
+</svg>

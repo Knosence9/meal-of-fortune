@@ -1,0 +1,35 @@
+{
+	"name": "Meal of Fortune",
+	"short_name": "Meal Fortune",
+	"description": "Turn shared cravings into one restaurant decision.",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#fff9f0",
+	"theme_color": "#fff9f0",
+	"icons": [
+		{
+			"src": "/meal-wheel.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/meal-wheel-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/meal-wheel-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/meal-wheel-maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	]
+}
