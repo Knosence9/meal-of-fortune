@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Install dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Dependency audit
+        run: nix develop --command pnpm audit --audit-level low
+
+      - name: Type and framework checks
+        run: nix develop --command pnpm check
+
+      - name: Formatting and lint
+        run: nix develop --command pnpm lint
+
+      - name: Unit tests
+        run: nix develop --command pnpm test
+
+      - name: Production build
+        run: nix develop --command pnpm build
+
+      - name: Browser and offline tests
+        run: nix develop --command pnpm test:e2e
