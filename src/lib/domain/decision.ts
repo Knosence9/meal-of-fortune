@@ -27,6 +27,13 @@ export interface DecideRestaurantInput {
 	random?: () => number;
 }
 
+export const DECISION_WEIGHTS = Object.freeze({
+	base: 1,
+	cuisineMatch: 4,
+	traitMatch: 2,
+	abstractMatch: 4
+});
+
 const ABSTRACT_CRAVINGS: Record<string, { traits: string[]; reason: string }> = {
 	bold: { traits: ['spicy', 'smoky'], reason: 'Bold flavors' },
 	cozy: { traits: ['comfort', 'hearty'], reason: 'Cozy mood' },
@@ -75,7 +82,11 @@ export function decideRestaurant({
 		return {
 			restaurant,
 			reasons,
-			weight: 1 + cuisineMatches.length * 4 + traitMatches.length * 2 + abstractMatches.length * 4
+			weight:
+				DECISION_WEIGHTS.base +
+				cuisineMatches.length * DECISION_WEIGHTS.cuisineMatch +
+				traitMatches.length * DECISION_WEIGHTS.traitMatch +
+				abstractMatches.length * DECISION_WEIGHTS.abstractMatch
 		};
 	});
 

@@ -8,7 +8,7 @@
 
 **Tech Stack:** SvelteKit, Svelte 5, TypeScript, pnpm, Zod, Vitest, Svelte Testing Library, Playwright, SvelteKit service worker, Web App Manifest, `@sveltejs/adapter-vercel`, and a restaurant provider selected by a documented coverage/terms/cost spike.
 
-**Status:** This plan supersedes `/home/knosence/Projects/meal-randomizer/.hermes/plans/2026-07-20_145946-meal-randomizer-mvp.md`.
+**Status:** This plan supersedes the earlier `2026-07-20_145946-meal-randomizer-mvp.md` plan.
 
 ---
 
@@ -44,7 +44,7 @@ The name is memorable and communicates food plus chance. Because it deliberately
 - Accept both free-text cravings and visible suggestion chips.
 - Treat location radius, explicit exclusions, and required cuisine as hard constraints.
 - Treat flavor, mood, food form, preferred cuisine, and price as soft signals unless explicitly marked required.
-- Use seeded weighted random selection among eligible restaurants.
+- Use test-injectable weighted random selection among eligible restaurants.
 - Exclude previously revealed restaurants until the current candidate set is exhausted.
 - Show two or three reasons explaining the match.
 - Warn that restaurant-level data cannot prove menu availability, dietary compliance, or allergen safety.
@@ -90,7 +90,7 @@ shared cravings + hard constraints + selected location
                          ↓
       score each eligible restaurant with reasons
                          ↓
-        seeded weighted random selection
+             weighted random selection
                          ↓
           animate an honest result reveal
                          ↓
@@ -266,11 +266,11 @@ Compare current official terms, caching/display restrictions, required attributi
 **Verification:**
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm check
-pnpm lint
-pnpm test
-pnpm build
+nix develop --command pnpm install --frozen-lockfile
+nix develop --command pnpm check
+nix develop --command pnpm lint
+nix develop --command pnpm test
+nix develop --command pnpm build
 ```
 
 Expected: all checks pass and SvelteKit produces a Vercel-compatible build.
@@ -338,7 +338,7 @@ Tests must prove:
 - sponsored status is never accepted as a hidden scoring input;
 - every positive score contribution has a user-readable reason.
 
-### Task 7: Implement seeded weighted selection and reroll exclusion
+### Task 7: Implement testable weighted selection and reroll exclusion
 
 **Objective:** Preserve surprise while making stronger matches more likely and preventing immediate repetition.
 
@@ -347,15 +347,13 @@ Tests must prove:
 - Create: `src/lib/domain/selection.ts`
 - Test: `tests/domain/selection.test.ts`
 
-Tests must cover no candidates, one candidate, deterministic seeds, exclusion of seen IDs, exhaustion behavior, and fixed-seed statistical preference for higher weights.
+Tests must cover no candidates, one candidate, deterministic injected random draws, exclusion of seen IDs, exhaustion behavior, and controlled-draw preference for higher weights.
 
 The selector returns:
 
 ```ts
 interface SelectionResult {
 	restaurant: RestaurantCandidate;
-	seed: string;
-	eligibleCount: number;
 	reasons: MatchReason[];
 }
 ```
@@ -523,11 +521,11 @@ Permitted event shapes include session started, decision requested, result shown
 **Commands:**
 
 ```bash
-pnpm check
-pnpm lint
-pnpm test
-pnpm exec playwright test
-pnpm build
+nix develop --command pnpm check
+nix develop --command pnpm lint
+nix develop --command pnpm test
+nix develop --command pnpm exec playwright test
+nix develop --command pnpm build
 ```
 
 Test at minimum:

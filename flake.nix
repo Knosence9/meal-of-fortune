@@ -26,8 +26,8 @@
             ] ++ lib.optionals stdenv.isLinux [ chromium ];
 
             shellHook = ''
-              export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
               ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+                export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
                 export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=${pkgs.chromium}/bin/chromium
               ''}
             '';

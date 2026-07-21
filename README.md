@@ -47,11 +47,17 @@ nix develop --command pnpm test
 nix develop --command pnpm build
 ```
 
-For a local browser smoke test, point Playwright at an installed Chromium-compatible browser:
+The Nix shell provides pinned Chromium on Linux:
 
 ```bash
-PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(command -v brave)" \
-  nix develop --command pnpm test:e2e
+nix develop --command pnpm test:e2e
+```
+
+On macOS, install Playwright-managed Chromium once before running the same test command:
+
+```bash
+nix develop --command pnpm exec playwright install chromium
+nix develop --command pnpm test:e2e
 ```
 
 ## Architecture

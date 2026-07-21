@@ -8,8 +8,14 @@ test('turns shared cravings into one restaurant decision', async ({ page }) => {
 	await spinButton.click();
 
 	await expect(page.getByText('Fortune favors')).toBeVisible({ timeout: 3_000 });
-	await expect(page.getByRole('link', { name: /open in maps/i })).toBeVisible();
+	await expect(page.getByText(/maps become available with live listings/i)).toBeVisible();
+	await expect(page.getByRole('link', { name: /open in maps/i })).toHaveCount(0);
 	await expect(spinButton).toBeFocused();
+});
+
+test('suggests a cuisine represented in the demo data', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.getByLabel(/add a craving/i)).toHaveAttribute('placeholder', /Try .*mexican/i);
 });
 
 test('clears a stale result when eligibility constraints change', async ({ page }) => {

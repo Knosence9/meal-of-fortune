@@ -223,7 +223,7 @@
 				<input
 					id="craving"
 					bind:value={cravingInput}
-					placeholder="Try ‘salty’, ‘cozy’, or ‘Thai’"
+					placeholder="Try ‘salty’, ‘cozy’, or ‘mexican’"
 					disabled={spinning}
 				/>
 				<button type="submit" disabled={spinning || !cravingInput.trim()}>Add</button>
@@ -377,8 +377,7 @@
 					</div>
 				</div>
 				<div class="result-actions">
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- trusted external demo URL -->
-					<a href={selectedDemo.mapUrl} target="_blank" rel="noreferrer">Open in Maps ↗</a>
+					<span class="maps-unavailable">Maps become available with live listings</span>
 					<button onclick={resetSession}>Start over</button>
 				</div>
 			</article>
@@ -1014,7 +1013,14 @@
 		gap: 8px;
 	}
 
-	.result-actions a,
+	.maps-unavailable {
+		max-width: 180px;
+		color: var(--muted);
+		font-size: 0.75rem;
+		line-height: 1.35;
+		text-align: center;
+	}
+
 	.result-actions button {
 		border-radius: 12px;
 		padding: 11px 9px;
@@ -1023,11 +1029,6 @@
 		text-decoration: none;
 		text-align: center;
 		white-space: nowrap;
-	}
-
-	.result-actions a {
-		background: var(--ink);
-		color: white;
 	}
 
 	.result-actions button {

@@ -6,6 +6,7 @@ import {
 	obsoleteAppCacheNames,
 	shouldRefreshNavigationShell
 } from '$lib/service-worker/cache-policy';
+import { networkFirstNavigation } from '$lib/service-worker/navigation';
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
 const cacheName = `${APP_CACHE_PREFIX}${version}`;
@@ -26,7 +27,7 @@ worker.addEventListener('activate', (event) => {
 		caches
 			.keys()
 			.then((keys) =>
-				Promise.all(obsoleteAppCacheNames(keys, cacheName).map((key) => caches.delete(key)))
+				Promise.all(obsoleteAppCacheNames(keys, cacheName).map((key: string) => caches.delete(key)))
 			)
 			.then(() => worker.clients.claim())
 	);
@@ -43,7 +44,13 @@ worker.addEventListener('fetch', (event) => {
 	}
 
 	if (event.request.mode === 'navigate') {
-		event.respondWith(networkFirstNavigation(event.request));
+		event.respondWith(
+			networkFirstNavigation(event.request, navigationShell, {
+				fetchRequest: (request: Request) => fetch(request),
+				openCache: () => caches.open(cacheName),
+				shouldRefreshShell: shouldRefreshNavigationShell
+			})
+		);
 		return;
 	}
 
@@ -54,17 +61,3 @@ worker.addEventListener('fetch', (event) => {
 			.then((cached) => cached ?? fetch(event.request))
 	);
 });
-
-async function networkFirstNavigation(request: Request): Promise<Response> {
-	try {
-		const response = await fetch(request);
-		if (response.ok && shouldRefreshNavigationShell(request.url)) {
-			const cache = await caches.open(cacheName);
-			await cache.put(navigationShell, response.clone());
-		}
-		return response;
-	} catch {
-		const cache = await caches.open(cacheName);
-		return (await cache.match(navigationShell)) ?? Response.error();
-	}
-}

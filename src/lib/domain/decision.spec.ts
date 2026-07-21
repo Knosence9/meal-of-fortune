@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { decideRestaurant, type RestaurantCandidate } from './decision';
+import { DECISION_WEIGHTS, decideRestaurant, type RestaurantCandidate } from './decision';
 
 const restaurants: RestaurantCandidate[] = [
 	{
@@ -24,6 +24,49 @@ const restaurants: RestaurantCandidate[] = [
 ];
 
 describe('decideRestaurant', () => {
+	it('uses the documented scoring coefficients', () => {
+		expect(DECISION_WEIGHTS).toEqual({
+			base: 1,
+			cuisineMatch: 4,
+			traitMatch: 2,
+			abstractMatch: 4
+		});
+	});
+
+	it('returns no decision when no candidate is eligible', () => {
+		const result = decideRestaurant({
+			candidates: restaurants,
+			cravings: ['savory'],
+			constraints: { radiusMiles: 0.5, openNow: true, priceLevels: [] },
+			seenIds: []
+		});
+
+		expect(result).toBeNull();
+	});
+
+	it('returns the only eligible candidate regardless of the random draw', () => {
+		const result = decideRestaurant({
+			candidates: [restaurants[0]],
+			cravings: ['savory'],
+			constraints: { radiusMiles: 5, openNow: true, priceLevels: [] },
+			seenIds: [],
+			random: () => 0.99
+		});
+
+		expect(result?.restaurant.id).toBe('nearby-cafe');
+	});
+
+	it('returns no decision when the eligible reroll cycle is exhausted', () => {
+		const result = decideRestaurant({
+			candidates: [restaurants[0]],
+			cravings: ['savory'],
+			constraints: { radiusMiles: 5, openNow: true, priceLevels: [] },
+			seenIds: ['nearby-cafe']
+		});
+
+		expect(result).toBeNull();
+	});
+
 	it('excludes restaurants outside the selected radius before choosing', () => {
 		const result = decideRestaurant({
 			candidates: restaurants,

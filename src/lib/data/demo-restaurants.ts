@@ -3,7 +3,6 @@ import type { RestaurantCandidate } from '$lib/domain/decision';
 export interface DemoRestaurant extends RestaurantCandidate {
 	emoji: string;
 	address: string;
-	mapUrl: string;
 }
 
 export const demoRestaurants: DemoRestaurant[] = [
@@ -16,8 +15,7 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 2,
 		isOpen: true,
 		emoji: '🍛',
-		address: '14 Lantern Lane',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Indian+restaurant'
+		address: '14 Lantern Lane'
 	},
 	{
 		id: 'verde-taco',
@@ -28,8 +26,7 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 1,
 		isOpen: true,
 		emoji: '🌮',
-		address: '82 Market Street',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Mexican+restaurant'
+		address: '82 Market Street'
 	},
 	{
 		id: 'hearth-pasta',
@@ -40,8 +37,7 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 2,
 		isOpen: true,
 		emoji: '🍝',
-		address: '7 Olive Court',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Italian+restaurant'
+		address: '7 Olive Court'
 	},
 	{
 		id: 'paper-crane',
@@ -52,8 +48,7 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 3,
 		isOpen: true,
 		emoji: '🍣',
-		address: '210 Garden Avenue',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Japanese+restaurant'
+		address: '210 Garden Avenue'
 	},
 	{
 		id: 'cedar-table',
@@ -64,8 +59,7 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 2,
 		isOpen: true,
 		emoji: '🥙',
-		address: '55 Grove Road',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Mediterranean+restaurant'
+		address: '55 Grove Road'
 	},
 	{
 		id: 'ember-burger',
@@ -76,8 +70,7 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 2,
 		isOpen: true,
 		emoji: '🍔',
-		address: '31 Foundry Way',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Burger+restaurant'
+		address: '31 Foundry Way'
 	},
 	{
 		id: 'golden-wok',
@@ -88,8 +81,7 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 1,
 		isOpen: true,
 		emoji: '🥡',
-		address: '9 Station Square',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Chinese+restaurant'
+		address: '9 Station Square'
 	},
 	{
 		id: 'sugar-cloud',
@@ -100,7 +92,6 @@ export const demoRestaurants: DemoRestaurant[] = [
 		priceLevel: 1,
 		isOpen: false,
 		emoji: '🍰',
-		address: '4 Baker Walk',
-		mapUrl: 'https://www.google.com/maps/search/?api=1&query=Dessert+cafe'
+		address: '4 Baker Walk'
 	}
 ];
