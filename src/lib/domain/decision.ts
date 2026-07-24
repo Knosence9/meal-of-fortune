@@ -4,7 +4,7 @@ export interface RestaurantCandidate {
 	cuisines: string[];
 	traits: string[];
 	distanceMiles: number;
-	priceLevel: number;
+	priceLevel: number | null;
 	isOpen: boolean;
 }
 
@@ -54,7 +54,7 @@ export function decideRestaurant({
 			restaurant.distanceMiles <= constraints.radiusMiles &&
 			(!constraints.openNow || restaurant.isOpen) &&
 			(constraints.priceLevels.length === 0 ||
-				constraints.priceLevels.includes(restaurant.priceLevel))
+				(restaurant.priceLevel !== null && constraints.priceLevels.includes(restaurant.priceLevel)))
 	);
 
 	if (eligible.length === 0) return null;

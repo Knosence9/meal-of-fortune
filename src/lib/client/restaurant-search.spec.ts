@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { requestLiveRestaurants } from './restaurant-search';
+import { isValidLiveRestaurant, requestLiveRestaurants } from './restaurant-search';
 
 function isAborted(signal: AbortSignal | null): boolean {
 	return signal?.aborted === true;
@@ -24,5 +24,26 @@ describe('requestLiveRestaurants', () => {
 		).rejects.toThrow();
 		expect(requestSignal).not.toBeNull();
 		expect(isAborted(requestSignal)).toBe(true);
+	});
+});
+
+describe('isValidLiveRestaurant', () => {
+	const validRestaurant = {
+		source: 'google',
+		id: 'place-1',
+		name: 'Safe Cafe',
+		cuisines: ['cafe'],
+		traits: [],
+		distanceMiles: 1.2,
+		priceLevel: null,
+		isOpen: true,
+		address: '1 Main Street'
+	};
+
+	it('accepts absent optional Google fields and rejects malformed values', () => {
+		expect(isValidLiveRestaurant(validRestaurant)).toBe(true);
+		expect(isValidLiveRestaurant({ ...validRestaurant, rating: Number.NaN })).toBe(false);
+		expect(isValidLiveRestaurant({ ...validRestaurant, ratingCount: 2.5 })).toBe(false);
+		expect(isValidLiveRestaurant({ ...validRestaurant, mapsUri: 123 })).toBe(false);
 	});
 });

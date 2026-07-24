@@ -6,7 +6,7 @@
 		type RestaurantDecision
 	} from '$lib/domain/decision';
 	import { demoRestaurants } from '$lib/data/demo-restaurants';
-	import { requestLiveRestaurants } from '$lib/client/restaurant-search';
+	import { isValidLiveRestaurant, requestLiveRestaurants } from '$lib/client/restaurant-search';
 
 	interface DisplayRestaurant extends RestaurantCandidate {
 		source: 'demo' | 'google';
@@ -67,7 +67,8 @@
 			(restaurant) =>
 				restaurant.distanceMiles <= radiusMiles &&
 				(!openNow || restaurant.isOpen) &&
-				(priceLevels.length === 0 || priceLevels.includes(restaurant.priceLevel))
+				(priceLevels.length === 0 ||
+					(restaurant.priceLevel !== null && priceLevels.includes(restaurant.priceLevel)))
 		).length
 	);
 
@@ -172,14 +173,16 @@
 			);
 			const payload = (await response.json()) as {
 				configured?: boolean;
-				restaurants?: DisplayRestaurant[];
+				restaurants?: unknown[];
 				error?: string;
 			};
 			if (epoch !== searchEpoch) return false;
 			if (!response.ok || !Array.isArray(payload.restaurants)) {
 				throw new Error(payload.error || 'Live restaurant search failed.');
 			}
-			candidates = payload.restaurants.filter(isDisplayRestaurant);
+			candidates = payload.restaurants.filter((candidate): candidate is DisplayRestaurant =>
+				isValidLiveRestaurant(candidate)
+			);
 			livePoolLoaded = true;
 			notice = candidates.length
 				? `Found ${candidates.length} live ${candidates.length === 1 ? 'restaurant' : 'restaurants'} from Google Maps.`
@@ -195,23 +198,6 @@
 			if (activeLiveSearch === controller) activeLiveSearch = null;
 			if (epoch === searchEpoch) loadingRestaurants = false;
 		}
-	}
-
-	function isDisplayRestaurant(value: unknown): value is DisplayRestaurant {
-		if (!value || typeof value !== 'object') return false;
-		const restaurant = value as Partial<DisplayRestaurant>;
-		return (
-			restaurant.source === 'google' &&
-			typeof restaurant.id === 'string' &&
-			typeof restaurant.name === 'string' &&
-			Array.isArray(restaurant.cuisines) &&
-			Array.isArray(restaurant.traits) &&
-			typeof restaurant.distanceMiles === 'number' &&
-			Number.isFinite(restaurant.distanceMiles) &&
-			typeof restaurant.priceLevel === 'number' &&
-			typeof restaurant.isOpen === 'boolean' &&
-			typeof restaurant.address === 'string'
-		);
 	}
 
 	function useCurrentLocation(): void {
@@ -478,9 +464,11 @@
 					<h2>{selectedRestaurant.name}</h2>
 					<p>
 						{selectedRestaurant.address} · {selectedRestaurant.distanceMiles.toFixed(1)} mi ·
-						{selectedRestaurant.priceLevel > 0
-							? '$'.repeat(selectedRestaurant.priceLevel)
-							: 'Price not listed'}
+						{selectedRestaurant.priceLevel === 0
+							? 'Free'
+							: selectedRestaurant.priceLevel !== null && selectedRestaurant.priceLevel > 0
+								? '$'.repeat(selectedRestaurant.priceLevel)
+								: 'Price not listed'}
 					</p>
 					{#if selectedRestaurant.source === 'google' && selectedRestaurant.rating !== undefined}
 						<p class="rating-line">

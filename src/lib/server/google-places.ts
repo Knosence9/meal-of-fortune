@@ -183,7 +183,7 @@ function cuisinesFromGoogleTypes(types: string[]): string[] {
 		.map((type) => type.slice(0, -'_restaurant'.length).replaceAll('_', ' '));
 }
 
-function googlePriceLevel(value?: string): number {
+function googlePriceLevel(value?: string): number | null {
 	return (
 		{
 			PRICE_LEVEL_FREE: 0,
@@ -191,7 +191,7 @@ function googlePriceLevel(value?: string): number {
 			PRICE_LEVEL_MODERATE: 2,
 			PRICE_LEVEL_EXPENSIVE: 3,
 			PRICE_LEVEL_VERY_EXPENSIVE: 4
-		}[value ?? ''] ?? 0
+		}[value ?? ''] ?? null
 	);
 }
 

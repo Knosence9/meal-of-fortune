@@ -288,6 +288,7 @@ describe('searchGoogleRestaurants', () => {
 			{ apiKey: 'test-key', fetcher }
 		);
 
+		expect(restaurant.priceLevel).toBeNull();
 		expect(restaurant.rating).toBeUndefined();
 		expect(restaurant.ratingCount).toBeUndefined();
 	});
