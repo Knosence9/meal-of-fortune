@@ -3,3 +3,4 @@ allowBuilds:
 
 overrides:
   cookie: 0.7.2
+  tar: 7.5.21

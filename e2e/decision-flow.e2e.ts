@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
 
+test('shows the deployed application version on the home and privacy pages', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.getByText('Version 0.2.1', { exact: true })).toBeVisible();
+
+	await page.goto('/privacy');
+	await expect(page.getByText('Version 0.2.1', { exact: true })).toBeVisible();
+});
+
 test('turns shared cravings into one restaurant decision', async ({ page }) => {
 	await page.goto('/');
 
