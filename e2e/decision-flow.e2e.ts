@@ -18,6 +18,109 @@ test('suggests a cuisine represented in the demo data', async ({ page }) => {
 	await expect(page.getByLabel(/add a craving/i)).toHaveAttribute('placeholder', /Try .*mexican/i);
 });
 
+test('publishes live-provider privacy and terms disclosures', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('link', { name: 'Privacy' }).click();
+	await expect(page.getByRole('heading', { name: 'Privacy' })).toBeVisible();
+	const locationSection = page
+		.locator('section')
+		.filter({ has: page.getByRole('heading', { name: 'Location and restaurant searches' }) });
+	await expect(locationSection.getByText(/Google Maps Platform APIs/i)).toBeVisible();
+	await expect(locationSection.getByText(/not stored by Meal of Fortune/i)).toBeVisible();
+
+	await page.getByRole('link', { name: 'Terms' }).click();
+	await expect(page.getByRole('heading', { name: 'Terms of Use' })).toBeVisible();
+	await expect(page.getByText(/Google Maps Platform Terms of Service/i)).toBeVisible();
+});
+
+test('loads a live restaurant and shows its aggregate Google rating without review content', async ({
+	page
+}) => {
+	let requestBody: unknown;
+	await page.route('**/api/restaurants', async (route) => {
+		requestBody = route.request().postDataJSON();
+		await new Promise((resolve) => setTimeout(resolve, 150));
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				configured: true,
+				restaurants: [
+					{
+						id: 'google-real-1',
+						name: 'Real Verde Kitchen',
+						address: '100 Real Street',
+						cuisines: ['mexican'],
+						traits: [],
+						distanceMiles: 1.25,
+						priceLevel: 2,
+						isOpen: true,
+						rating: 4.7,
+						ratingCount: 321,
+						mapsUri: 'https://maps.google.com/?cid=123',
+						source: 'google'
+					}
+				]
+			})
+		});
+	});
+	await page.goto('/');
+	await page.getByLabel(/U\.S\. city and state, or ZIP/i).fill('Midtown Atlanta');
+	await page.getByRole('button', { name: 'Set', exact: true }).click();
+	await page.getByRole('button', { name: /spin the wheel/i }).click();
+	await expect(page.getByRole('status')).toContainText(/finding real restaurants/i);
+
+	await expect(page.getByRole('heading', { name: 'Real Verde Kitchen' })).toBeVisible({
+		timeout: 5_000
+	});
+	expect(requestBody).toEqual({ location: { area: 'Midtown Atlanta' }, radiusMiles: 5 });
+	await expect(page.getByText(/4\.7 on Google Maps/i)).toBeVisible();
+	await expect(page.getByText(/321 ratings/i)).toBeVisible();
+	await expect(page.getByRole('link', { name: /open in Google Maps/i })).toHaveAttribute(
+		'href',
+		'https://maps.google.com/?cid=123'
+	);
+	await expect(page.getByAltText('Google Maps', { exact: true })).toBeVisible();
+	await expect(page.getByText(/review text that should not exist/i)).toHaveCount(0);
+});
+
+test('keeps Google attribution when a live result has no Maps link', async ({ page }) => {
+	await page.route('**/api/restaurants', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				configured: true,
+				restaurants: [
+					{
+						id: 'google-no-link',
+						name: 'Attributed Kitchen',
+						address: '101 Real Street',
+						cuisines: ['mexican'],
+						traits: [],
+						distanceMiles: 1,
+						priceLevel: 2,
+						isOpen: true,
+						rating: 4.5,
+						ratingCount: 20,
+						source: 'google'
+					}
+				]
+			})
+		});
+	});
+	await page.goto('/');
+	await page.getByLabel(/U\.S\. city and state, or ZIP/i).fill('30318');
+	await page.getByRole('button', { name: 'Set', exact: true }).click();
+	await page.getByRole('button', { name: /spin the wheel/i }).click();
+
+	await expect(page.getByRole('heading', { name: 'Attributed Kitchen' })).toBeVisible({
+		timeout: 5_000
+	});
+	await expect(page.getByAltText('Google Maps', { exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: /open in Google Maps/i })).toHaveCount(0);
+});
+
 test('clears a stale result when eligibility constraints change', async ({ page }) => {
 	await page.goto('/');
 	await page.getByRole('button', { name: /spin the wheel/i }).click();
@@ -82,7 +185,7 @@ test('keeps a manually selected area when an older geolocation request finishes'
 	});
 	await page.goto('/');
 	await page.getByRole('button', { name: /use my location/i }).click();
-	await page.getByLabel(/neighborhood, city, or zip/i).fill('Midtown');
+	await page.getByLabel(/U\.S\. city and state, or ZIP/i).fill('Midtown');
 	await page.getByRole('button', { name: 'Set', exact: true }).click();
 
 	await page.evaluate(() =>

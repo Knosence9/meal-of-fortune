@@ -20,6 +20,7 @@
               pnpm
               git
               gh
+              google-cloud-sdk
               gnused
               coreutils
               librsvg

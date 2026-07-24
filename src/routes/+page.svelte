@@ -1,7 +1,23 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { decideRestaurant, type RestaurantDecision } from '$lib/domain/decision';
+	import {
+		decideRestaurant,
+		type RestaurantCandidate,
+		type RestaurantDecision
+	} from '$lib/domain/decision';
 	import { demoRestaurants } from '$lib/data/demo-restaurants';
+	import { requestLiveRestaurants } from '$lib/client/restaurant-search';
+
+	interface DisplayRestaurant extends RestaurantCandidate {
+		source: 'demo' | 'google';
+		address: string;
+		emoji?: string;
+		rating?: number;
+		ratingCount?: number;
+		mapsUri?: string;
+	}
+
+	type LiveSearchLocation = { latitude: number; longitude: number } | { area: string };
 
 	const suggestions = [
 		'spicy',
@@ -16,6 +32,10 @@
 		'mediterranean'
 	];
 	const wheelWords = ['SPICY', 'FRESH', 'COZY', 'SWEET', 'BOLD', 'LIGHT'];
+	const demoCandidates: DisplayRestaurant[] = demoRestaurants.map((restaurant) => ({
+		...restaurant,
+		source: 'demo'
+	}));
 
 	let cravings = $state<string[]>(['savory']);
 	let cravingInput = $state('');
@@ -31,14 +51,19 @@
 	let manualLocation = $state('');
 	let locationStatus = $state<'idle' | 'requesting' | 'ready' | 'denied'>('idle');
 	let locationEpoch = 0;
+	let liveSearchLocation = $state<LiveSearchLocation | null>(null);
+	let candidates = $state<DisplayRestaurant[]>(demoCandidates);
+	let livePoolLoaded = $state(false);
+	let loadingRestaurants = $state(false);
+	let searchEpoch = 0;
+	let activeLiveSearch: AbortController | null = null;
+	let busy = $derived(spinning || loadingRestaurants);
 
-	let selectedDemo = $derived(
-		result
-			? demoRestaurants.find((restaurant) => restaurant.id === result?.restaurant.id)
-			: undefined
+	let selectedRestaurant = $derived(
+		result ? candidates.find((restaurant) => restaurant.id === result?.restaurant.id) : undefined
 	);
 	let matchingCount = $derived(
-		demoRestaurants.filter(
+		candidates.filter(
 			(restaurant) =>
 				restaurant.distanceMiles <= radiusMiles &&
 				(!openNow || restaurant.isOpen) &&
@@ -66,19 +91,32 @@
 		clearDecisionState();
 	}
 
-	function clearDecisionState(): void {
+	function clearDecisionState(clearLivePool = false): void {
+		activeLiveSearch?.abort();
+		activeLiveSearch = null;
 		spinEpoch += 1;
+		searchEpoch += 1;
 		spinning = false;
+		loadingRestaurants = false;
 		seenIds = [];
 		result = null;
 		notice = '';
+		if (clearLivePool && liveSearchLocation) {
+			candidates = [];
+			livePoolLoaded = false;
+		}
 	}
 
-	function spin(): void {
-		if (spinning || cravings.length === 0) return;
+	async function spin(): Promise<void> {
+		if (busy || cravings.length === 0) return;
+
+		if (liveSearchLocation && !livePoolLoaded) {
+			const loaded = await loadLiveCandidates();
+			if (!loaded) return;
+		}
 
 		let decision = decideRestaurant({
-			candidates: demoRestaurants,
+			candidates,
 			cravings,
 			constraints: { radiusMiles, openNow, priceLevels },
 			seenIds,
@@ -88,7 +126,7 @@
 		if (!decision && seenIds.length > 0) {
 			seenIds = [];
 			decision = decideRestaurant({
-				candidates: demoRestaurants,
+				candidates,
 				cravings,
 				constraints: { radiusMiles, openNow, priceLevels },
 				seenIds: [],
@@ -98,7 +136,7 @@
 
 		if (!decision) {
 			result = null;
-			notice = 'No demo restaurants fit those filters. Try a wider radius or another price.';
+			notice = `No ${liveSearchLocation ? 'live' : 'demo'} restaurants fit those filters. Try a wider radius or another price.`;
 			return;
 		}
 
@@ -118,6 +156,64 @@
 		);
 	}
 
+	async function loadLiveCandidates(): Promise<boolean> {
+		if (!liveSearchLocation) return true;
+		activeLiveSearch?.abort();
+		const controller = new AbortController();
+		activeLiveSearch = controller;
+		const epoch = ++searchEpoch;
+		loadingRestaurants = true;
+		result = null;
+		notice = 'Finding real restaurants near your selected area…';
+		try {
+			const response = await requestLiveRestaurants(
+				{ location: liveSearchLocation, radiusMiles },
+				{ signal: controller.signal }
+			);
+			const payload = (await response.json()) as {
+				configured?: boolean;
+				restaurants?: DisplayRestaurant[];
+				error?: string;
+			};
+			if (epoch !== searchEpoch) return false;
+			if (!response.ok || !Array.isArray(payload.restaurants)) {
+				throw new Error(payload.error || 'Live restaurant search failed.');
+			}
+			candidates = payload.restaurants.filter(isDisplayRestaurant);
+			livePoolLoaded = true;
+			notice = candidates.length
+				? `Found ${candidates.length} live ${candidates.length === 1 ? 'restaurant' : 'restaurants'} from Google Maps.`
+				: 'Google Maps returned no restaurants for that area and radius.';
+			return true;
+		} catch (error) {
+			if (epoch !== searchEpoch) return false;
+			candidates = [];
+			livePoolLoaded = false;
+			notice = error instanceof Error ? error.message : 'Live restaurant search failed.';
+			return false;
+		} finally {
+			if (activeLiveSearch === controller) activeLiveSearch = null;
+			if (epoch === searchEpoch) loadingRestaurants = false;
+		}
+	}
+
+	function isDisplayRestaurant(value: unknown): value is DisplayRestaurant {
+		if (!value || typeof value !== 'object') return false;
+		const restaurant = value as Partial<DisplayRestaurant>;
+		return (
+			restaurant.source === 'google' &&
+			typeof restaurant.id === 'string' &&
+			typeof restaurant.name === 'string' &&
+			Array.isArray(restaurant.cuisines) &&
+			Array.isArray(restaurant.traits) &&
+			typeof restaurant.distanceMiles === 'number' &&
+			Number.isFinite(restaurant.distanceMiles) &&
+			typeof restaurant.priceLevel === 'number' &&
+			typeof restaurant.isOpen === 'boolean' &&
+			typeof restaurant.address === 'string'
+		);
+	}
+
 	function useCurrentLocation(): void {
 		if (!navigator.geolocation) {
 			locationStatus = 'denied';
@@ -128,17 +224,21 @@
 		const epoch = ++locationEpoch;
 		locationStatus = 'requesting';
 		navigator.geolocation.getCurrentPosition(
-			() => {
+			(position) => {
 				if (epoch !== locationEpoch) return;
-				clearDecisionState();
+				liveSearchLocation = {
+					latitude: position.coords.latitude,
+					longitude: position.coords.longitude
+				};
+				clearDecisionState(true);
 				locationLabel = 'Current location';
 				locationStatus = 'ready';
-				notice = 'Location accepted. The prototype still uses its curated demo restaurant set.';
+				notice = 'Location accepted. Spin to retrieve real nearby restaurants.';
 			},
 			() => {
 				if (epoch !== locationEpoch) return;
 				locationStatus = 'denied';
-				notice = 'Location was not shared. You can type a neighborhood, city, or ZIP instead.';
+				notice = 'Location was not shared. You can enter a U.S. city and state or ZIP instead.';
 			},
 			{ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
 		);
@@ -148,12 +248,12 @@
 		const value = manualLocation.trim();
 		if (!value) return;
 		locationEpoch += 1;
-		clearDecisionState();
+		liveSearchLocation = { area: value };
+		clearDecisionState(true);
 		locationLabel = value;
 		locationStatus = 'ready';
 		manualLocation = '';
-		notice =
-			'Area saved. Live local search will replace demo restaurants after provider selection.';
+		notice = 'Area saved. Spin to retrieve real nearby restaurants.';
 	}
 
 	function resetSession(): void {
@@ -205,7 +305,7 @@
 						class="selected-chip"
 						onclick={() => removeCraving(craving)}
 						aria-label={`Remove ${craving}`}
-						disabled={spinning}
+						disabled={busy}
 					>
 						{craving}<span aria-hidden="true">×</span>
 					</button>
@@ -224,16 +324,16 @@
 					id="craving"
 					bind:value={cravingInput}
 					placeholder="Try ‘salty’, ‘cozy’, or ‘mexican’"
-					disabled={spinning}
+					disabled={busy}
 				/>
-				<button type="submit" disabled={spinning || !cravingInput.trim()}>Add</button>
+				<button type="submit" disabled={busy || !cravingInput.trim()}>Add</button>
 			</form>
 
 			<div class="suggestion-row" aria-label="Craving suggestions">
 				{#each suggestions
 					.filter((suggestion) => !cravings.includes(suggestion))
 					.slice(0, 7) as suggestion (suggestion)}
-					<button onclick={() => addCraving(suggestion)} disabled={spinning}>+ {suggestion}</button>
+					<button onclick={() => addCraving(suggestion)} disabled={busy}>+ {suggestion}</button>
 				{/each}
 			</div>
 
@@ -255,7 +355,7 @@
 				<button
 					class="location-button"
 					onclick={useCurrentLocation}
-					disabled={spinning || locationStatus === 'requesting'}
+					disabled={busy || locationStatus === 'requesting'}
 				>
 					{locationStatus === 'requesting' ? 'Locating…' : 'Use my location'}
 				</button>
@@ -267,14 +367,14 @@
 					setManualLocation();
 				}}
 			>
-				<label class="sr-only" for="area">Neighborhood, city, or ZIP</label>
+				<label class="sr-only" for="area">U.S. city and state, or ZIP</label>
 				<input
 					id="area"
 					bind:value={manualLocation}
-					placeholder="Or type an area"
-					disabled={spinning}
+					placeholder="City, state or ZIP"
+					disabled={busy}
 				/>
-				<button type="submit" disabled={spinning || !manualLocation.trim()}>Set</button>
+				<button type="submit" disabled={busy || !manualLocation.trim()}>Set</button>
 			</form>
 
 			<div class="range-row">
@@ -286,8 +386,8 @@
 					max="10"
 					step="1"
 					bind:value={radiusMiles}
-					oninput={clearDecisionState}
-					disabled={spinning}
+					oninput={() => clearDecisionState(true)}
+					disabled={busy}
 				/>
 			</div>
 
@@ -297,8 +397,8 @@
 					<input
 						type="checkbox"
 						bind:checked={openNow}
-						onchange={clearDecisionState}
-						disabled={spinning}
+						onchange={() => clearDecisionState()}
+						disabled={busy}
 					/>
 					<span class="switch" aria-hidden="true"></span>
 				</label>
@@ -310,7 +410,7 @@
 								class:active={priceLevels.includes(level)}
 								onclick={() => togglePrice(level)}
 								aria-pressed={priceLevels.includes(level)}
-								disabled={spinning}
+								disabled={busy}
 							>
 								{'$'.repeat(level)}
 							</button>
@@ -323,7 +423,12 @@
 		<div class="wheel-card">
 			<div class="wheel-copy">
 				<p class="overline">
-					{matchingCount} qualified demo {matchingCount === 1 ? 'place' : 'places'}
+					{#if liveSearchLocation && !livePoolLoaded}
+						Live search ready
+					{:else}
+						{matchingCount} qualified {liveSearchLocation ? 'live' : 'demo'}
+						{matchingCount === 1 ? 'place' : 'places'}
+					{/if}
 				</p>
 				<h2>Leave the last choice<br />to fortune.</h2>
 			</div>
@@ -341,10 +446,18 @@
 			<button
 				class="spin-button"
 				onclick={spin}
-				disabled={cravings.length === 0 || matchingCount === 0}
-				aria-disabled={spinning}
+				disabled={cravings.length === 0 || (!liveSearchLocation && matchingCount === 0)}
+				aria-disabled={busy}
 			>
-				<span>{spinning ? 'Fortune is turning…' : result ? 'Spin again' : 'Spin the wheel'}</span>
+				<span
+					>{loadingRestaurants
+						? 'Finding restaurants…'
+						: spinning
+							? 'Fortune is turning…'
+							: result
+								? 'Spin again'
+								: 'Spin the wheel'}</span
+				>
 				<span aria-hidden="true">→</span>
 			</button>
 			<p class="fine-print">
@@ -353,21 +466,31 @@
 		</div>
 	</section>
 
-	<section class="outcome" aria-live="polite" aria-atomic="true">
+	<section class="outcome">
 		{#if notice}
-			<p class="notice">{notice}</p>
+			<p class="notice" role="status" aria-live="polite" aria-atomic="true">{notice}</p>
 		{/if}
-		{#if selectedDemo && result}
+		{#if selectedRestaurant && result}
 			<article class="result-card">
-				<div class="result-emoji" aria-hidden="true">{selectedDemo.emoji}</div>
+				<div class="result-emoji" aria-hidden="true">{selectedRestaurant.emoji ?? '🍽️'}</div>
 				<div class="result-main">
 					<p class="overline">Fortune favors</p>
-					<h2>{selectedDemo.name}</h2>
+					<h2>{selectedRestaurant.name}</h2>
 					<p>
-						{selectedDemo.address} · {selectedDemo.distanceMiles.toFixed(1)} mi · {'$'.repeat(
-							selectedDemo.priceLevel
-						)}
+						{selectedRestaurant.address} · {selectedRestaurant.distanceMiles.toFixed(1)} mi ·
+						{selectedRestaurant.priceLevel > 0
+							? '$'.repeat(selectedRestaurant.priceLevel)
+							: 'Price not listed'}
 					</p>
+					{#if selectedRestaurant.source === 'google' && selectedRestaurant.rating !== undefined}
+						<p class="rating-line">
+							<span aria-hidden="true">★</span>
+							{selectedRestaurant.rating.toFixed(1)} on Google Maps
+							{#if selectedRestaurant.ratingCount !== undefined}
+								· {selectedRestaurant.ratingCount.toLocaleString()} ratings
+							{/if}
+						</p>
+					{/if}
 					<div class="reason-list">
 						{#if result.reasons.length}
 							{#each result.reasons as reason (reason)}<span>{reason}</span>{/each}
@@ -377,7 +500,21 @@
 					</div>
 				</div>
 				<div class="result-actions">
-					<span class="maps-unavailable">Maps become available with live listings</span>
+					{#if selectedRestaurant.source === 'google'}
+						{#if selectedRestaurant.mapsUri}
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+							<a href={selectedRestaurant.mapsUri} target="_blank" rel="noreferrer"
+								>Open in Google Maps ↗</a
+							>
+						{/if}
+						<img
+							class="provider-attribution"
+							src="/google-maps-attribution.svg"
+							alt="Google Maps"
+						/>
+					{:else}
+						<span class="maps-unavailable">Maps become available with live listings</span>
+					{/if}
 					<button onclick={resetSession}>Start over</button>
 				</div>
 			</article>
@@ -387,10 +524,10 @@
 	<section class="prototype-note">
 		<span aria-hidden="true">◎</span>
 		<div>
-			<strong>This MVP uses a curated demo neighborhood.</strong>
+			<strong>Demo by default. Live Google Maps results after you choose an area.</strong>
 			<p>
-				Location controls are functional and private, but nearby results remain demo data until the
-				provider evaluation is complete. Nothing here is presented as a live local listing.
+				Precise location and live restaurant results stay in short-lived page memory and are never
+				stored by the app. Google ratings are informational and never change the wheel's odds.
 			</p>
 		</div>
 	</section>
@@ -399,7 +536,11 @@
 <footer>
 	<span>Meal of Fortune</span>
 	<p>One shared craving list. One honest spin. One decision.</p>
-	<a href="https://github.com/Knosence9/meal-of-fortune">View the open-source project ↗</a>
+	<nav aria-label="Footer links">
+		<a href={resolve('/privacy')}>Privacy</a>
+		<a href={resolve('/terms')}>Terms</a>
+		<a href="https://github.com/Knosence9/meal-of-fortune">Source ↗</a>
+	</nav>
 </footer>
 
 <style>
@@ -996,6 +1137,16 @@
 		color: var(--muted);
 	}
 
+	.rating-line {
+		margin-top: 7px;
+		font-weight: 750;
+		color: #5f4309 !important;
+	}
+
+	.rating-line span {
+		color: #e59a00;
+	}
+
 	.reason-list {
 		margin-top: 10px;
 	}
@@ -1021,6 +1172,13 @@
 		text-align: center;
 	}
 
+	.provider-attribution {
+		width: 96px;
+		height: auto;
+		align-self: center;
+	}
+
+	.result-actions a,
 	.result-actions button {
 		border-radius: 12px;
 		padding: 11px 9px;
@@ -1029,6 +1187,11 @@
 		text-decoration: none;
 		text-align: center;
 		white-space: nowrap;
+	}
+
+	.result-actions a {
+		background: var(--orange);
+		color: white;
 	}
 
 	.result-actions button {
@@ -1081,6 +1244,12 @@
 	footer a {
 		color: var(--plum);
 		font-weight: 700;
+	}
+
+	footer nav {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 14px;
 	}
 
 	@media (max-width: 860px) {
