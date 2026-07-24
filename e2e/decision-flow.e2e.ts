@@ -69,6 +69,7 @@ test('loads a live restaurant and shows its aggregate Google rating without revi
 	await page.getByRole('button', { name: 'Set', exact: true }).click();
 	await page.getByRole('button', { name: /spin the wheel/i }).click();
 	await expect(page.getByRole('status')).toContainText(/finding real restaurants/i);
+	await expect(page.getByRole('status')).toContainText(/found 1 live restaurant/i);
 
 	await expect(page.getByRole('heading', { name: 'Real Verde Kitchen' })).toBeVisible({
 		timeout: 5_000

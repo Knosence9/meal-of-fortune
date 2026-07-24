@@ -33,6 +33,7 @@ export function isValidLiveRestaurant(value: unknown): boolean {
 		restaurant.traits.every((trait) => typeof trait === 'string') &&
 		typeof restaurant.distanceMiles === 'number' &&
 		Number.isFinite(restaurant.distanceMiles) &&
+		restaurant.distanceMiles >= 0 &&
 		priceValid &&
 		typeof restaurant.isOpen === 'boolean' &&
 		typeof restaurant.address === 'string' &&

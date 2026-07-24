@@ -144,7 +144,6 @@
 		const epoch = ++spinEpoch;
 		spinning = true;
 		result = null;
-		notice = '';
 		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		window.setTimeout(
 			() => {
@@ -152,6 +151,7 @@
 				result = decision;
 				seenIds = [...seenIds, decision.restaurant.id];
 				spinning = false;
+				notice = '';
 			},
 			reducedMotion ? 20 : 1050
 		);
