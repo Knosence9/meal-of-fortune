@@ -152,6 +152,27 @@ describe('decideRestaurant', () => {
 		expect(result?.restaurant.id).toBe('budget');
 	});
 
+	it('does not treat an unknown price as free or as a selected price tier', () => {
+		const unknownPrice = { ...restaurants[0], id: 'unknown-price', priceLevel: null };
+		const withoutPriceFilter = decideRestaurant({
+			candidates: [unknownPrice],
+			cravings: [],
+			constraints: { radiusMiles: 5, openNow: true, priceLevels: [] },
+			seenIds: [],
+			random: () => 0
+		});
+		const withPriceFilter = decideRestaurant({
+			candidates: [unknownPrice],
+			cravings: [],
+			constraints: { radiusMiles: 5, openNow: true, priceLevels: [1] },
+			seenIds: [],
+			random: () => 0
+		});
+
+		expect(withoutPriceFilter?.restaurant.id).toBe('unknown-price');
+		expect(withPriceFilter).toBeNull();
+	});
+
 	it('maps abstract cravings to related restaurant traits', () => {
 		const result = decideRestaurant({
 			candidates: [
