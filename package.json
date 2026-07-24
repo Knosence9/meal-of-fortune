@@ -1,7 +1,7 @@
 {
 	"name": "meal-of-fortune",
 	"private": true,
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "A mobile-first PWA that turns shared cravings into one restaurant decision.",
 	"license": "MIT",
 	"packageManager": "pnpm@11.15.0",
