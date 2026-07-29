@@ -6,6 +6,7 @@ export interface RateLimitResult {
 interface RateLimiterOptions {
 	limit: number;
 	windowMs: number;
+
 	now?: () => number;
 	maxClients?: number;
 }
